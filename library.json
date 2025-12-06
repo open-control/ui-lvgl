@@ -1,0 +1,20 @@
+{
+  "name": "open-control-ui-lvgl",
+  "version": "0.1.0",
+  "description": "LVGL UI integration for Open Control Framework",
+  "keywords": ["open-control", "lvgl", "ui", "embedded", "display"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-control/ui-lvgl.git"
+  },
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "dependencies": {
+    "open-control": "https://github.com/open-control/framework.git",
+    "lvgl": "^9.0.0"
+  },
+  "build": {
+    "includeDir": "src"
+  }
+}
