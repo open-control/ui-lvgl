@@ -15,6 +15,10 @@
     "lvgl": "^9.4.0"
   },
   "build": {
-    "includeDir": "src"
+    "includeDir": "src",
+    "flags": [
+      "-D LV_CONF_INCLUDE_SIMPLE",
+      "-D LV_LVGL_H_INCLUDE_SIMPLE"
+    ]
   }
 }
