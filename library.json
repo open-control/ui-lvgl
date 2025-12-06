@@ -12,7 +12,7 @@
   "platforms": "*",
   "dependencies": {
     "open-control": "https://github.com/open-control/framework.git",
-    "lvgl": "^9.0.0"
+    "lvgl": "^9.4.0"
   },
   "build": {
     "includeDir": "src"
