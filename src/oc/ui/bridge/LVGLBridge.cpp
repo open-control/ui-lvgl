@@ -2,11 +2,13 @@
 
 namespace oc::ui {
 
-LVGLBridge::LVGLBridge(hal::IDisplayDriver& driver, void* buffer, size_t bufferSize,
+LVGLBridge::LVGLBridge(hal::IDisplayDriver& driver, void* buffer,
+                       hal::TimeProvider time,
                        const LVGLBridgeConfig& config)
     : driver_(&driver)
     , buffer_(buffer)
-    , bufferSize_(bufferSize > 0 ? bufferSize : driver.width() * driver.height() * sizeof(lv_color_t))
+    , bufferSize_(driver.width() * driver.height() * sizeof(lv_color_t))
+    , timeProvider_(time)
     , config_(config)
 {}
 
@@ -21,6 +23,7 @@ LVGLBridge::LVGLBridge(LVGLBridge&& other) noexcept
     : driver_(other.driver_)
     , buffer_(other.buffer_)
     , bufferSize_(other.bufferSize_)
+    , timeProvider_(other.timeProvider_)
     , config_(other.config_)
     , display_(other.display_)
     , initialized_(other.initialized_)
@@ -37,6 +40,7 @@ LVGLBridge& LVGLBridge::operator=(LVGLBridge&& other) noexcept {
         driver_ = other.driver_;
         buffer_ = other.buffer_;
         bufferSize_ = other.bufferSize_;
+        timeProvider_ = other.timeProvider_;
         config_ = other.config_;
         display_ = other.display_;
         initialized_ = other.initialized_;
@@ -51,6 +55,13 @@ bool LVGLBridge::init() {
 
     if (!driver_) return false;
     if (!buffer_) return false;
+    if (!timeProvider_) return false;
+
+    // Initialize LVGL (idempotent - safe to call multiple times)
+    lv_init();
+
+    // Set tick callback for LVGL timing
+    lv_tick_set_cb(timeProvider_);
 
     // Create display with dimensions from driver
     display_ = lv_display_create(driver_->width(), driver_->height());
@@ -71,6 +82,12 @@ bool LVGLBridge::init() {
     // Wire flush callback to our display driver
     lv_display_set_flush_cb(display_, flushCallback);
     lv_display_set_user_data(display_, driver_);
+
+    // Configure refresh rate if specified
+    if (config_.refreshHz > 0) {
+        lv_timer_set_period(lv_display_get_refr_timer(display_),
+                            1000 / config_.refreshHz);
+    }
 
     initialized_ = true;
     return true;

@@ -3,65 +3,52 @@
 #include <lvgl.h>
 
 #include <oc/hal/IDisplayDriver.hpp>
+#include <oc/hal/Types.hpp>
 
 namespace oc::ui {
 
 /**
  * @brief Configuration options for LVGL bridge (constexpr-friendly)
- *
- * Contains only rendering options, no runtime pointers.
  */
 struct LVGLBridgeConfig {
     /// Render mode (FULL recommended for small displays)
     lv_display_render_mode_t renderMode = LV_DISPLAY_RENDER_MODE_FULL;
 
-    /// Optional second buffer for double-buffering (nullptr = single buffer)
+    /// Optional second buffer for double-buffering
     void* buffer2 = nullptr;
-};
 
-/**
- * @brief Runtime buffers for LVGL bridge
- */
-struct LVGLBridgeBuffers {
-    void* buffer1 = nullptr;      ///< Primary draw buffer (DMAMEM on Teensy)
-    void* buffer2 = nullptr;      ///< Optional second buffer for double-buffering
-    size_t bufferSize = 0;        ///< Size in bytes, 0 = auto-calculate from driver
+    /// Refresh rate in Hz (0 = use LVGL default)
+    uint32_t refreshHz = 0;
 };
 
 /**
  * @brief Bridge between LVGL and Open Control display driver
  *
- * Connects LVGL rendering to any IDisplayDriver implementation.
- * Consumer is responsible for LVGL initialization and memory configuration.
- *
- * Prerequisites (consumer responsibility):
- * - Configure lv_conf.h (memory, features, tick)
- * - Call lv_init() before bridge.init()
- * - Provide draw buffer(s)
+ * Handles all LVGL initialization internally (lv_init, tick, display).
  *
  * @code
  * // Config.hpp
  * constexpr LVGLBridgeConfig LVGL_CONFIG = {
- *     .renderMode = LV_DISPLAY_RENDER_MODE_FULL
+ *     .refreshHz = 100
  * };
  *
  * // main.cpp
- * lv_init();
- * lvgl.emplace(*display, Buffers::lvgl, LVGL_CONFIG);
+ * lvgl = LVGLBridge(*display, Buffer::lvgl, millis, LVGL::CONFIG);
  * lvgl->init();
  * @endcode
  */
 class LVGLBridge {
 public:
     /**
-     * @brief Construct LVGL bridge with driver, buffer, and optional config
+     * @brief Construct LVGL bridge
      *
-     * @param driver     Display driver (must outlive the bridge)
-     * @param buffer     Primary draw buffer (DMAMEM lv_color_t[width*height])
-     * @param bufferSize Size in bytes, or 0 to auto-calculate from driver dimensions
-     * @param config     Optional configuration (render mode, etc.)
+     * @param driver  Display driver (must outlive the bridge)
+     * @param buffer  Primary draw buffer (DMAMEM lv_color_t[width*height])
+     * @param time    Time provider for LVGL tick (e.g., millis)
+     * @param config  Optional configuration
      */
-    LVGLBridge(hal::IDisplayDriver& driver, void* buffer, size_t bufferSize = 0,
+    LVGLBridge(hal::IDisplayDriver& driver, void* buffer,
+               hal::TimeProvider time,
                const LVGLBridgeConfig& config = {});
 
     ~LVGLBridge();
@@ -75,10 +62,10 @@ public:
     LVGLBridge& operator=(const LVGLBridge&) = delete;
 
     /**
-     * @brief Initialize LVGL display
+     * @brief Initialize LVGL and display
      *
-     * Creates lv_display, sets buffers, wires flush callback.
-     * Requires lv_init() to have been called first by consumer.
+     * Calls lv_init() (idempotent), sets tick callback,
+     * creates display, configures buffers and refresh rate.
      *
      * @return true if successful
      */
@@ -86,21 +73,10 @@ public:
 
     /**
      * @brief Process LVGL timers and rendering
-     *
-     * Call this regularly in main loop (typically every frame).
-     * Triggers rendering and flush to display driver.
      */
     void refresh();
 
-    /**
-     * @brief Check if bridge is initialized
-     */
     bool isInitialized() const { return initialized_; }
-
-    /**
-     * @brief Get underlying LVGL display
-     * @return Display pointer or nullptr if not initialized
-     */
     lv_display_t* getDisplay() const { return display_; }
 
 private:
@@ -109,6 +85,7 @@ private:
     hal::IDisplayDriver* driver_;
     void* buffer_;
     size_t bufferSize_;
+    hal::TimeProvider timeProvider_;
     LVGLBridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;
