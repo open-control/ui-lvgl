@@ -1,9 +1,14 @@
-
 #include "LVGLBridge.hpp"
 
 namespace oc::ui {
 
-LVGLBridge::LVGLBridge(const LVGLBridgeConfig& config) : config_(config) {}
+LVGLBridge::LVGLBridge(hal::IDisplayDriver& driver, void* buffer, size_t bufferSize,
+                       const LVGLBridgeConfig& config)
+    : driver_(&driver)
+    , buffer_(buffer)
+    , bufferSize_(bufferSize > 0 ? bufferSize : driver.width() * driver.height() * sizeof(lv_color_t))
+    , config_(config)
+{}
 
 LVGLBridge::~LVGLBridge() {
     if (display_) {
@@ -12,24 +17,51 @@ LVGLBridge::~LVGLBridge() {
     }
 }
 
+LVGLBridge::LVGLBridge(LVGLBridge&& other) noexcept
+    : driver_(other.driver_)
+    , buffer_(other.buffer_)
+    , bufferSize_(other.bufferSize_)
+    , config_(other.config_)
+    , display_(other.display_)
+    , initialized_(other.initialized_)
+{
+    other.display_ = nullptr;
+    other.initialized_ = false;
+}
+
+LVGLBridge& LVGLBridge::operator=(LVGLBridge&& other) noexcept {
+    if (this != &other) {
+        if (display_) {
+            lv_display_delete(display_);
+        }
+        driver_ = other.driver_;
+        buffer_ = other.buffer_;
+        bufferSize_ = other.bufferSize_;
+        config_ = other.config_;
+        display_ = other.display_;
+        initialized_ = other.initialized_;
+        other.display_ = nullptr;
+        other.initialized_ = false;
+    }
+    return *this;
+}
+
 bool LVGLBridge::init() {
     if (initialized_) return true;
 
-    // Validate required config
-    if (!config_.driver) return false;
-    if (!config_.buffer1) return false;
-    if (config_.bufferSizeBytes == 0) return false;
+    if (!driver_) return false;
+    if (!buffer_) return false;
 
-    // Create display
-    display_ = lv_display_create(config_.width, config_.height);
+    // Create display with dimensions from driver
+    display_ = lv_display_create(driver_->width(), driver_->height());
     if (!display_) return false;
 
     // Set draw buffers
     lv_display_set_buffers(
         display_,
-        config_.buffer1,
+        buffer_,
         config_.buffer2,
-        config_.bufferSizeBytes,
+        bufferSize_,
         config_.renderMode
     );
 
@@ -38,7 +70,7 @@ bool LVGLBridge::init() {
 
     // Wire flush callback to our display driver
     lv_display_set_flush_cb(display_, flushCallback);
-    lv_display_set_user_data(display_, config_.driver);
+    lv_display_set_user_data(display_, driver_);
 
     initialized_ = true;
     return true;
@@ -67,4 +99,3 @@ void LVGLBridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
 }
 
 }  // namespace oc::ui
-
