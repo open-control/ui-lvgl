@@ -1,9 +1,8 @@
 #pragma once
 
-
 #include "IWidget.hpp"
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
 /**
  * @brief Interface for UI components with explicit visibility control
@@ -54,5 +53,4 @@ public:
     virtual bool isVisible() const = 0;
 };
 
-}  // namespace oc::ui
-
+}  // namespace oc::ui::lvgl

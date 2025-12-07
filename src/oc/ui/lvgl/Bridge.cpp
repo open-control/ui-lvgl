@@ -1,10 +1,10 @@
-#include "LVGLBridge.hpp"
+#include "Bridge.hpp"
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
-LVGLBridge::LVGLBridge(hal::IDisplayDriver& driver, void* buffer,
-                       hal::TimeProvider time,
-                       const LVGLBridgeConfig& config)
+Bridge::Bridge(hal::IDisplayDriver& driver, void* buffer,
+               hal::TimeProvider time,
+               const BridgeConfig& config)
     : driver_(&driver)
     , buffer_(buffer)
     , bufferSize_(driver.width() * driver.height() * sizeof(lv_color_t))
@@ -12,14 +12,14 @@ LVGLBridge::LVGLBridge(hal::IDisplayDriver& driver, void* buffer,
     , config_(config)
 {}
 
-LVGLBridge::~LVGLBridge() {
+Bridge::~Bridge() {
     if (display_) {
         lv_display_delete(display_);
         display_ = nullptr;
     }
 }
 
-LVGLBridge::LVGLBridge(LVGLBridge&& other) noexcept
+Bridge::Bridge(Bridge&& other) noexcept
     : driver_(other.driver_)
     , buffer_(other.buffer_)
     , bufferSize_(other.bufferSize_)
@@ -32,7 +32,7 @@ LVGLBridge::LVGLBridge(LVGLBridge&& other) noexcept
     other.initialized_ = false;
 }
 
-LVGLBridge& LVGLBridge::operator=(LVGLBridge&& other) noexcept {
+Bridge& Bridge::operator=(Bridge&& other) noexcept {
     if (this != &other) {
         if (display_) {
             lv_display_delete(display_);
@@ -50,7 +50,7 @@ LVGLBridge& LVGLBridge::operator=(LVGLBridge&& other) noexcept {
     return *this;
 }
 
-bool LVGLBridge::init() {
+bool Bridge::init() {
     if (initialized_) return true;
 
     if (!driver_) return false;
@@ -93,13 +93,13 @@ bool LVGLBridge::init() {
     return true;
 }
 
-void LVGLBridge::refresh() {
+void Bridge::refresh() {
     if (initialized_) {
         lv_timer_handler();
     }
 }
 
-void LVGLBridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
     auto* driver = static_cast<hal::IDisplayDriver*>(lv_display_get_user_data(disp));
 
     if (driver) {
@@ -115,4 +115,4 @@ void LVGLBridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_
     lv_display_flush_ready(disp);
 }
 
-}  // namespace oc::ui
+}  // namespace oc::ui::lvgl

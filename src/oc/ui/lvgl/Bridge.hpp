@@ -5,12 +5,12 @@
 #include <oc/hal/IDisplayDriver.hpp>
 #include <oc/hal/Types.hpp>
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
 /**
  * @brief Configuration options for LVGL bridge (constexpr-friendly)
  */
-struct LVGLBridgeConfig {
+struct BridgeConfig {
     /// Render mode (FULL recommended for small displays)
     lv_display_render_mode_t renderMode = LV_DISPLAY_RENDER_MODE_FULL;
 
@@ -28,16 +28,16 @@ struct LVGLBridgeConfig {
  *
  * @code
  * // Config.hpp
- * constexpr LVGLBridgeConfig LVGL_CONFIG = {
+ * constexpr BridgeConfig LVGL_CONFIG = {
  *     .refreshHz = 100
  * };
  *
  * // main.cpp
- * lvgl = LVGLBridge(*display, Buffer::lvgl, millis, LVGL::CONFIG);
- * lvgl->init();
+ * bridge = Bridge(*display, Buffer::lvgl, millis, LVGL::CONFIG);
+ * bridge->init();
  * @endcode
  */
-class LVGLBridge {
+class Bridge {
 public:
     /**
      * @brief Construct LVGL bridge
@@ -47,19 +47,19 @@ public:
      * @param time    Time provider for LVGL tick (e.g., millis)
      * @param config  Optional configuration
      */
-    LVGLBridge(hal::IDisplayDriver& driver, void* buffer,
-               hal::TimeProvider time,
-               const LVGLBridgeConfig& config = {});
+    Bridge(hal::IDisplayDriver& driver, void* buffer,
+           hal::TimeProvider time,
+           const BridgeConfig& config = {});
 
-    ~LVGLBridge();
+    ~Bridge();
 
     // Moveable
-    LVGLBridge(LVGLBridge&& other) noexcept;
-    LVGLBridge& operator=(LVGLBridge&& other) noexcept;
+    Bridge(Bridge&& other) noexcept;
+    Bridge& operator=(Bridge&& other) noexcept;
 
     // Non-copyable
-    LVGLBridge(const LVGLBridge&) = delete;
-    LVGLBridge& operator=(const LVGLBridge&) = delete;
+    Bridge(const Bridge&) = delete;
+    Bridge& operator=(const Bridge&) = delete;
 
     /**
      * @brief Initialize LVGL and display
@@ -86,9 +86,9 @@ private:
     void* buffer_;
     size_t bufferSize_;
     hal::TimeProvider timeProvider_;
-    LVGLBridgeConfig config_;
+    BridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;
 };
 
-}  // namespace oc::ui
+}  // namespace oc::ui::lvgl

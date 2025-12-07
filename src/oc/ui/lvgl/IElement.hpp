@@ -2,13 +2,13 @@
 
 #include <lvgl.h>
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
 /**
  * @brief Base interface for UI elements backed by LVGL objects
  *
  * Provides access to the underlying LVGL object for:
- * - Scoped input bindings (via LVGLAdapter)
+ * - Scoped input bindings (via Adapter)
  * - Direct LVGL manipulation when needed
  * - Parent-child relationships
  *
@@ -22,7 +22,7 @@ public:
      * @brief Get the underlying LVGL object
      * @return LVGL object pointer, or nullptr if not created/destroyed
      *
-     * This object can be used with LVGLAdapter to create scoped bindings
+     * This object can be used with Adapter to create scoped bindings
      * that are only active when this element is visible.
      *
      * For composite elements, this should return the top-level container.
@@ -30,5 +30,4 @@ public:
     virtual lv_obj_t* getElement() const = 0;
 };
 
-}  // namespace oc::ui
-
+}  // namespace oc::ui::lvgl

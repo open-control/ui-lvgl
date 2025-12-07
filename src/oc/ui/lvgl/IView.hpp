@@ -1,9 +1,8 @@
 #pragma once
 
-
 #include "IElement.hpp"
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
 /**
  * @brief Interface for full-screen views with system-managed lifecycle
@@ -37,7 +36,7 @@ public:
      * The view should:
      * - Show its content (clear hidden flag on container)
      * - Start any animations or updates
-     * - Set up input bindings (they auto-activate via lvglIsActive)
+     * - Set up input bindings (they auto-activate via isActive)
      */
     virtual void onActivate() = 0;
 
@@ -49,7 +48,7 @@ public:
      * - Hide its content (set hidden flag on container)
      * - Stop animations or updates
      * - Save state if necessary
-     * - Input bindings auto-deactivate via lvglIsActive
+     * - Input bindings auto-deactivate via isActive
      */
     virtual void onDeactivate() = 0;
 
@@ -60,5 +59,4 @@ public:
     virtual const char* getViewId() const = 0;
 };
 
-}  // namespace oc::ui
-
+}  // namespace oc::ui::lvgl

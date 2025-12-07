@@ -1,9 +1,8 @@
 #pragma once
 
-
 #include "IElement.hpp"
 
-namespace oc::ui {
+namespace oc::ui::lvgl {
 
 /**
  * @brief Interface for atomic UI widgets
@@ -26,5 +25,4 @@ public:
     // No additional methods - widgets are simple, always-visible elements
 };
 
-}  // namespace oc::ui
-
+}  // namespace oc::ui::lvgl

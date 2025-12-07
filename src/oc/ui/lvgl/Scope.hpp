@@ -4,10 +4,9 @@
 
 #include <oc/core/struct/Binding.hpp>
 
-namespace oc::ui {
+#include "IElement.hpp"
 
-// Forward declaration
-class IElement;
+namespace oc::ui::lvgl {
 
 /**
  * @brief Create IsActiveFn from LVGL object
@@ -21,7 +20,7 @@ class IElement;
  * @param obj LVGL object to track (typically from IView::getElement())
  * @return IsActiveFn that returns true when obj is visible
  */
-inline core::IsActiveFn lvglIsActive(lv_obj_t* obj) {
+inline core::IsActiveFn isActive(lv_obj_t* obj) {
     return [obj]() {
         return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
     };
@@ -36,13 +35,9 @@ inline core::IsActiveFn lvglIsActive(lv_obj_t* obj) {
  * @param obj LVGL object
  * @return Unique ScopeID derived from pointer
  */
-inline core::ScopeID lvglScopeID(lv_obj_t* obj) {
+inline core::ScopeID scopeID(lv_obj_t* obj) {
     return reinterpret_cast<core::ScopeID>(obj);
 }
-
-// ═══════════════════════════════════════════════════
-// Fluent API Scope Provider
-// ═══════════════════════════════════════════════════
 
 /**
  * @brief Scope provider for LVGL-based UI elements
@@ -51,22 +46,22 @@ inline core::ScopeID lvglScopeID(lv_obj_t* obj) {
  * scope ID and visibility-based activation.
  *
  * @code
- * using oc::ui::lvgl;
+ * using oc::ui::lvgl::scope;
  *
  * // Bindings tied to dialog visibility
- * api.button(BTN_OK).onPress().scope(lvgl(dialog)).then([]{ confirm(); });
- * api.button(BTN_CANCEL).onPress().scope(lvgl(dialog)).then([]{ cancel(); });
+ * api.button(BTN_OK).onPress().scope(scope(dialog)).then([]{ confirm(); });
+ * api.button(BTN_CANCEL).onPress().scope(scope(dialog)).then([]{ cancel(); });
  *
  * // Clear all bindings when dialog closes
- * api.clearScope(lvglScopeID(dialog->getElement()));
+ * api.clearScope(scopeID(dialog->getElement()));
  * @endcode
  */
-class LVGLScope {
+class Scope {
 public:
     /**
      * @brief Construct from raw LVGL object pointer
      */
-    explicit LVGLScope(lv_obj_t* element) : element_(element) {}
+    explicit Scope(lv_obj_t* element) : element_(element) {}
 
     /**
      * @brief Get the scope ID for binding registration
@@ -74,7 +69,7 @@ public:
      * Required by the fluent API's duck-typed scope() template.
      */
     core::ScopeID getScopeID() const {
-        return lvglScopeID(element_);
+        return scopeID(element_);
     }
 
     /**
@@ -84,7 +79,7 @@ public:
      * When present, bindings will only trigger when the element is visible.
      */
     core::IsActiveFn getIsActive() const {
-        return lvglIsActive(element_);
+        return isActive(element_);
     }
 
 private:
@@ -92,36 +87,27 @@ private:
 };
 
 /**
- * @brief Create LVGLScope from raw LVGL object
+ * @brief Create Scope from raw LVGL object
  *
  * Factory function for the fluent API.
  *
  * @param element LVGL object pointer
- * @return LVGLScope for use with scope()
+ * @return Scope for use with scope()
  */
-inline LVGLScope lvgl(lv_obj_t* element) {
-    return LVGLScope(element);
+inline Scope scope(lv_obj_t* element) {
+    return Scope(element);
 }
 
 /**
- * @brief Create LVGLScope from IElement
+ * @brief Create Scope from IElement
  *
  * Factory function for the fluent API.
  *
  * @param element Reference to UI element implementing IElement
- * @return LVGLScope for use with scope()
+ * @return Scope for use with scope()
  */
-inline LVGLScope lvgl(const IElement& element);
-
-}  // namespace oc::ui
-
-// Include IElement to complete the inline implementation
-#include <oc/ui/interface/IElement.hpp>
-
-namespace oc::ui {
-
-inline LVGLScope lvgl(const IElement& element) {
-    return LVGLScope(element.getElement());
+inline Scope scope(const IElement& element) {
+    return Scope(element.getElement());
 }
 
-}  // namespace oc::ui
+}  // namespace oc::ui::lvgl
