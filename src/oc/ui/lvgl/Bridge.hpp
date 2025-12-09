@@ -19,6 +19,9 @@ struct BridgeConfig {
 
     /// Refresh rate in Hz (0 = use LVGL default)
     uint32_t refreshHz = 0;
+
+    /// Screen background color (default: black)
+    lv_color_t screenBgColor{};
 };
 
 /**

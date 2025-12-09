@@ -89,6 +89,9 @@ bool Bridge::init() {
                             1000 / config_.refreshHz);
     }
 
+    // Set screen background color
+    lv_obj_set_style_bg_color(lv_screen_active(), config_.screenBgColor, 0);
+
     initialized_ = true;
     return true;
 }
