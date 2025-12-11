@@ -2,6 +2,7 @@
 
 #include <lvgl.h>
 
+#include <oc/core/Result.hpp>
 #include <oc/hal/IDisplayDriver.hpp>
 #include <oc/hal/Types.hpp>
 
@@ -70,9 +71,9 @@ public:
      * Calls lv_init() (idempotent), sets tick callback,
      * creates display, configures buffers and refresh rate.
      *
-     * @return true if successful
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    bool init();
+    core::Result<void> init();
 
     /**
      * @brief Process LVGL timers and rendering

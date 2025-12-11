@@ -50,12 +50,15 @@ Bridge& Bridge::operator=(Bridge&& other) noexcept {
     return *this;
 }
 
-bool Bridge::init() {
-    if (initialized_) return true;
+core::Result<void> Bridge::init() {
+    using R = core::Result<void>;
+    using E = core::ErrorCode;
 
-    if (!driver_) return false;
-    if (!buffer_) return false;
-    if (!timeProvider_) return false;
+    if (initialized_) return R::ok();
+
+    if (!driver_) return R::err({E::INVALID_ARGUMENT, "display driver required"});
+    if (!buffer_) return R::err({E::INVALID_ARGUMENT, "buffer required"});
+    if (!timeProvider_) return R::err({E::INVALID_ARGUMENT, "time provider required"});
 
     // Initialize LVGL (idempotent - safe to call multiple times)
     lv_init();
@@ -65,7 +68,7 @@ bool Bridge::init() {
 
     // Create display with dimensions from driver
     display_ = lv_display_create(driver_->width(), driver_->height());
-    if (!display_) return false;
+    if (!display_) return R::err({E::HARDWARE_INIT_FAILED, "LVGL display create"});
 
     // Set draw buffers
     lv_display_set_buffers(
@@ -93,7 +96,7 @@ bool Bridge::init() {
     lv_obj_set_style_bg_color(lv_screen_active(), config_.screenBgColor, 0);
 
     initialized_ = true;
-    return true;
+    return R::ok();
 }
 
 void Bridge::refresh() {
