@@ -6,8 +6,9 @@
 #if LV_USE_SDL
 
 #include <SDL.h>
-#include <oc/hal/Types.hpp>
-#include <oc/core/Result.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
+#include <oc/types/Result.hpp>
 
 namespace oc::ui::lvgl {
 
@@ -45,7 +46,7 @@ public:
      * @param config Optional configuration
      */
     SdlBridge(uint16_t width, uint16_t height,
-              hal::TimeProvider timeProvider,
+              oc::TimeProvider timeProvider,
               const SdlBridgeConfig& config = {});
     ~SdlBridge();
 
@@ -62,7 +63,7 @@ public:
      * Input devices (mouse, keyboard, mousewheel) are created by default
      * to enable interaction with LVGL widgets.
      */
-    core::Result<void> init();
+    oc::Result<void> init();
 
     /**
      * @brief Process LVGL timers
@@ -94,11 +95,11 @@ public:
 private:
     uint16_t width_;
     uint16_t height_;
-    hal::TimeProvider timeProvider_;
+    oc::TimeProvider timeProvider_;
     SdlBridgeConfig config_;
     lv_display_t* display_ = nullptr;
 };
 
-} // namespace oc::ui::lvgl
+}  // namespace oc::ui::lvgl
 
 #endif // LV_USE_SDL

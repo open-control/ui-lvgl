@@ -2,8 +2,8 @@
 
 namespace oc::ui::lvgl {
 
-Bridge::Bridge(hal::IDisplayDriver& driver, void* buffer,
-               hal::TimeProvider time,
+Bridge::Bridge(interface::IDisplay& driver, void* buffer,
+               oc::TimeProvider time,
                const BridgeConfig& config)
     : driver_(&driver)
     , buffer_(buffer)
@@ -50,9 +50,9 @@ Bridge& Bridge::operator=(Bridge&& other) noexcept {
     return *this;
 }
 
-core::Result<void> Bridge::init() {
-    using R = core::Result<void>;
-    using E = core::ErrorCode;
+oc::Result<void> Bridge::init() {
+    using R = oc::Result<void>;
+    using E = oc::ErrorCode;
 
     if (initialized_) return R::ok();
 
@@ -106,10 +106,10 @@ void Bridge::refresh() {
 }
 
 void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-    auto* driver = static_cast<hal::IDisplayDriver*>(lv_display_get_user_data(disp));
+    auto* driver = static_cast<interface::IDisplay*>(lv_display_get_user_data(disp));
 
     if (driver) {
-        hal::Rect rect{
+        interface::Rect rect{
             .x1 = area->x1,
             .y1 = area->y1,
             .x2 = area->x2,

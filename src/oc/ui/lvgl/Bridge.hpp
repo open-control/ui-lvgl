@@ -2,9 +2,10 @@
 
 #include <lvgl.h>
 
-#include <oc/core/Result.hpp>
-#include <oc/hal/IDisplayDriver.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/types/Result.hpp>
+#include <oc/interface/IDisplay.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::ui::lvgl {
 
@@ -51,8 +52,8 @@ public:
      * @param time    Time provider for LVGL tick (e.g., millis)
      * @param config  Optional configuration
      */
-    Bridge(hal::IDisplayDriver& driver, void* buffer,
-           hal::TimeProvider time,
+    Bridge(interface::IDisplay& driver, void* buffer,
+           oc::TimeProvider time,
            const BridgeConfig& config = {});
 
     ~Bridge();
@@ -73,7 +74,7 @@ public:
      *
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    core::Result<void> init();
+    oc::Result<void> init();
 
     /**
      * @brief Process LVGL timers and rendering
@@ -86,10 +87,10 @@ public:
 private:
     static void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
 
-    hal::IDisplayDriver* driver_;
+    interface::IDisplay* driver_;
     void* buffer_;
     size_t bufferSize_;
-    hal::TimeProvider timeProvider_;
+    oc::TimeProvider timeProvider_;
     BridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;
