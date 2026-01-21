@@ -2,7 +2,7 @@
 
 #include <lvgl.h>
 
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Binding.hpp>
 
 #include "IElement.hpp"
 
