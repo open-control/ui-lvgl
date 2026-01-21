@@ -1,5 +1,7 @@
 #include "FontUtils.hpp"
 
+#if LV_USE_FS_MEMFS
+
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -41,3 +43,5 @@ void freeFont(lv_font_t*& font) {
 }
 
 }  // namespace oc::ui::lvgl
+
+#endif  // LV_USE_FS_MEMFS

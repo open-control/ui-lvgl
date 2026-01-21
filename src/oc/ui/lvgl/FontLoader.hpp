@@ -35,12 +35,16 @@
 
 namespace oc::ui::lvgl::font {
 
+#if LV_USE_FS_MEMFS
+
 /**
  * @brief Font entry descriptor
  *
  * Stored in flash (const). Points to:
  * - target: RAM location for loaded font pointer
  * - data: Flash location of binary font data
+ *
+ * @note Requires LV_USE_FS_MEMFS to be enabled in lv_conf.h
  */
 struct Entry {
     lv_font_t** target;      ///< RAM: where to store loaded font
@@ -132,5 +136,7 @@ template<size_t N>
 inline size_t countLoaded(const Entry (&entries)[N]) {
     return countLoaded(entries, N);
 }
+
+#endif  // LV_USE_FS_MEMFS
 
 }  // namespace oc::ui::lvgl::font

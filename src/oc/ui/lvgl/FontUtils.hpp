@@ -23,11 +23,15 @@
 
 namespace oc::ui::lvgl {
 
+#if LV_USE_FS_MEMFS
+
 /**
  * @brief Load a binary font from buffer with retry logic
  *
  * Attempts to load the font multiple times with exponential backoff
  * to handle transient memory allocation failures.
+ *
+ * @note Requires LV_USE_FS_MEMFS to be enabled in lv_conf.h
  *
  * @param buffer Pointer to font binary data
  * @param length Size of font data in bytes
@@ -46,5 +50,7 @@ lv_font_t* loadBinaryFont(const uint8_t* buffer, uint32_t length, int maxRetries
  * @param font Font to free (set to nullptr after)
  */
 void freeFont(lv_font_t*& font);
+
+#endif  // LV_USE_FS_MEMFS
 
 }  // namespace oc::ui::lvgl

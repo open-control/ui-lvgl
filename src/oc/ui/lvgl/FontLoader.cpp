@@ -1,4 +1,7 @@
 #include "FontLoader.hpp"
+
+#if LV_USE_FS_MEMFS
+
 #include "FontUtils.hpp"
 
 namespace oc::ui::lvgl::font {
@@ -41,3 +44,5 @@ size_t countLoaded(const Entry* entries, size_t count) {
 }
 
 }  // namespace oc::ui::lvgl::font
+
+#endif  // LV_USE_FS_MEMFS
