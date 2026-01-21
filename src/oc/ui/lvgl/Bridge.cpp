@@ -3,7 +3,7 @@
 namespace oc::ui::lvgl {
 
 Bridge::Bridge(interface::IDisplay& driver, void* buffer,
-               oc::TimeProvider time,
+               oc::type::TimeProvider time,
                const BridgeConfig& config)
     : driver_(&driver)
     , buffer_(buffer)
@@ -50,9 +50,9 @@ Bridge& Bridge::operator=(Bridge&& other) noexcept {
     return *this;
 }
 
-oc::Result<void> Bridge::init() {
-    using R = oc::Result<void>;
-    using E = oc::ErrorCode;
+oc::type::Result<void> Bridge::init() {
+    using R = oc::type::Result<void>;
+    using E = oc::type::ErrorCode;
 
     if (initialized_) return R::ok();
 

@@ -2,10 +2,10 @@
 
 #include <lvgl.h>
 
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 #include <oc/interface/IDisplay.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::ui::lvgl {
 
@@ -53,7 +53,7 @@ public:
      * @param config  Optional configuration
      */
     Bridge(interface::IDisplay& driver, void* buffer,
-           oc::TimeProvider time,
+           oc::type::TimeProvider time,
            const BridgeConfig& config = {});
 
     ~Bridge();
@@ -74,7 +74,7 @@ public:
      *
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    oc::Result<void> init();
+    oc::type::Result<void> init();
 
     /**
      * @brief Process LVGL timers and rendering
@@ -90,7 +90,7 @@ private:
     interface::IDisplay* driver_;
     void* buffer_;
     size_t bufferSize_;
-    oc::TimeProvider timeProvider_;
+    oc::type::TimeProvider timeProvider_;
     BridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;

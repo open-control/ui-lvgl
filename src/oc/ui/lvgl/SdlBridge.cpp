@@ -8,7 +8,7 @@
 namespace oc::ui::lvgl {
 
 SdlBridge::SdlBridge(uint16_t width, uint16_t height,
-                     oc::TimeProvider timeProvider,
+                     oc::type::TimeProvider timeProvider,
                      const SdlBridgeConfig& config)
     : width_(width), height_(height),
       timeProvider_(timeProvider), config_(config) {}
@@ -36,7 +36,7 @@ SdlBridge& SdlBridge::operator=(SdlBridge&& other) noexcept {
     return *this;
 }
 
-oc::Result<void> SdlBridge::init() {
+oc::type::Result<void> SdlBridge::init() {
     // Initialize LVGL (idempotent)
     lv_init();
 
@@ -46,7 +46,7 @@ oc::Result<void> SdlBridge::init() {
     // Create SDL window and display
     display_ = lv_sdl_window_create(width_, height_);
     if (!display_) {
-        return oc::Result<void>::err(oc::ErrorCode::HARDWARE_INIT_FAILED);
+        return oc::type::Result<void>::err(oc::type::ErrorCode::HARDWARE_INIT_FAILED);
     }
 
     // Configure window
@@ -79,7 +79,7 @@ oc::Result<void> SdlBridge::init() {
 
     lv_display_set_default(display_);
 
-    return oc::Result<void>::ok();
+    return oc::type::Result<void>::ok();
 }
 
 void SdlBridge::refresh() {
