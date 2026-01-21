@@ -1,8 +1,25 @@
 {
   "name": "ui-lvgl",
   "version": "0.2.0",
+  "description": "LVGL UI integration for Open Control Framework",
+  "keywords": ["open-control", "lvgl", "ui", "embedded", "display"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-control/ui-lvgl.git"
+  },
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "open-control/framework": ">=0.1.0 <1.0.0",
+    "lvgl/lvgl": "^9.4.0"
+  },
   "build": {
     "includeDir": "src",
+    "flags": [
+      "-D LV_CONF_INCLUDE_SIMPLE",
+      "-D LV_LVGL_H_INCLUDE_SIMPLE"
+    ],
     "srcFilter": ["+<**/*.cpp>", "-<main.cpp>", "-<**/FontUtils.cpp>"]
   }
 }
