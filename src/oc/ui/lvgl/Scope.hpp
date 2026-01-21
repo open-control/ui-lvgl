@@ -20,7 +20,7 @@ namespace oc::ui::lvgl {
  * @param obj LVGL object to track (typically from IView::getElement())
  * @return IsActiveFn that returns true when obj is visible
  */
-inline core::IsActiveFn isActive(lv_obj_t* obj) {
+inline oc::IsActiveFn isActive(lv_obj_t* obj) {
     return [obj]() {
         return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
     };
@@ -35,8 +35,8 @@ inline core::IsActiveFn isActive(lv_obj_t* obj) {
  * @param obj LVGL object
  * @return Unique ScopeID derived from pointer
  */
-inline core::ScopeID scopeID(lv_obj_t* obj) {
-    return reinterpret_cast<core::ScopeID>(obj);
+inline oc::ScopeID scopeID(lv_obj_t* obj) {
+    return reinterpret_cast<oc::ScopeID>(obj);
 }
 
 /**
@@ -68,7 +68,7 @@ public:
      *
      * Required by the fluent API's duck-typed scope() template.
      */
-    core::ScopeID getScopeID() const {
+    oc::ScopeID getScopeID() const {
         return scopeID(element_);
     }
 
@@ -78,7 +78,7 @@ public:
      * Optional method detected by the fluent API via SFINAE.
      * When present, bindings will only trigger when the element is visible.
      */
-    core::IsActiveFn getIsActive() const {
+    oc::IsActiveFn getIsActive() const {
         return isActive(element_);
     }
 

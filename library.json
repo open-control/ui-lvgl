@@ -20,6 +20,6 @@
       "-D LV_CONF_INCLUDE_SIMPLE",
       "-D LV_LVGL_H_INCLUDE_SIMPLE"
     ],
-    "srcFilter": ["+<**/*.cpp>", "-<main.cpp>", "-<**/FontUtils.cpp>"]
+    "srcFilter": ["+<**/*.cpp>", "-<main.cpp>"]
   }
 }
