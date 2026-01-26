@@ -1,5 +1,5 @@
 {
-  "name": "ui-lvgl",
+  "name": "oc-ui-lvgl",
   "version": "0.2.0",
   "description": "LVGL UI integration for Open Control Framework",
   "keywords": ["open-control", "lvgl", "ui", "embedded", "display"],
