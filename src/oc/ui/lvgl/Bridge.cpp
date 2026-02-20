@@ -109,13 +109,30 @@ void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* p
     auto* driver = static_cast<interface::IDisplay*>(lv_display_get_user_data(disp));
 
     if (driver) {
+        uint8_t* buffer = px_map;
+
+        const auto mode = lv_display_get_render_mode(disp);
+        if (mode == LV_DISPLAY_RENDER_MODE_DIRECT) {
+            // DIRECT mode may flush several dirty areas. For framebuffer-based
+            // drivers that diff against the full frame, trigger transfer once
+            // on the last area and always provide the active framebuffer base.
+            if (!lv_display_flush_is_last(disp)) {
+                lv_display_flush_ready(disp);
+                return;
+            }
+
+            if (auto* active = lv_display_get_buf_active(disp); active && active->data) {
+                buffer = active->data;
+            }
+        }
+
         interface::Rect rect{
             .x1 = area->x1,
             .y1 = area->y1,
             .x2 = area->x2,
             .y2 = area->y2
         };
-        driver->flush(px_map, rect);
+        driver->flush(buffer, rect);
     }
 
     lv_display_flush_ready(disp);
