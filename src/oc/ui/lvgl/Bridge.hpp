@@ -2,6 +2,7 @@
 
 #include <lvgl.h>
 
+#include <oc/Config.hpp>
 #include <oc/type/Result.hpp>
 #include <oc/interface/IDisplay.hpp>
 #include <oc/type/Ids.hpp>
@@ -86,6 +87,16 @@ public:
 
 private:
     static void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
+#if OC_ENABLE_STATS
+    static void displayInvalidateEvent(lv_event_t* event);
+
+    struct RefreshDiagnostics {
+        bool active = false;
+        uint32_t pendingInvalidatedPixels = 0;
+        uint32_t invalidatedPixels = 0;
+        uint32_t submittedPixels = 0;
+    };
+#endif
 
     interface::IDisplay* driver_;
     void* buffer_;
@@ -94,6 +105,9 @@ private:
     BridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;
+#if OC_ENABLE_STATS
+    RefreshDiagnostics refresh_diagnostics_{};
+#endif
 };
 
 }  // namespace oc::ui::lvgl

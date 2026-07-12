@@ -7,6 +7,21 @@ LVGL UI integration for Open Control Framework.
 - **FontLoader**: Stateless font management optimized for embedded systems
 - **FontUtils**: Low-level font loading with retry logic
 - **View/Widget interfaces**: Base classes for LVGL UI components
+- **Retained rendering primitives**: Pausable timers, off-screen parking, and
+  explicit static-surface invalidation
+
+## Retained Rendering Contract
+
+High-frequency product views should retain their LVGL object tree and mutate
+only changed widgets. `PausableTimer` provides an RAII render timer that remains
+paused while idle. `RetainedSurfaceParkingLot` moves inactive trees to an
+off-screen LVGL screen so active layout and refresh passes do not traverse them.
+
+Use `invalidateStaticSurfaceArea` or `StaticSurfaceInvalidationBatch` only for
+objects that are static and effect-free: no shadow, blur, overflow drawing, or
+user callbacks during a batch. A batch pauses display invalidation globally for
+its short synchronous lifetime, so every changed region must be included. Use
+normal LVGL invalidation whenever that contract cannot be guaranteed.
 
 ## Installation
 
