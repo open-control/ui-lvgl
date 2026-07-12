@@ -1,25 +1,13 @@
 #include "Bridge.hpp"
 
-#include <oc/log/Log.hpp>
+#include <algorithm>
+
+#include <oc/diagnostics/Performance.hpp>
 
 namespace oc::ui::lvgl {
 
-#if defined(PERF_LOG)
+#if OC_ENABLE_STATS
 namespace {
-
-struct FlushPerfWindow {
-    uint32_t startedAtMs = 0;
-    uint32_t callbackCount = 0;
-    uint32_t submittedCount = 0;
-    uint32_t skippedCount = 0;
-    uint32_t dirtyPixels = 0;
-    uint32_t submittedPixels = 0;
-    uint32_t maxAreaPixels = 0;
-    uint32_t largeAreaCount = 0;
-    uint32_t fullAreaCount = 0;
-};
-
-FlushPerfWindow g_flushPerfWindow;
 
 uint32_t rectPixelCount(const lv_area_t* area) {
     if (!area) return 0;
@@ -29,67 +17,6 @@ uint32_t rectPixelCount(const lv_area_t* area) {
     if (width <= 0 || height <= 0) return 0;
 
     return static_cast<uint32_t>(width) * static_cast<uint32_t>(height);
-}
-
-void maybeLogFlushPerfWindow(uint32_t nowMs) {
-    auto& window = g_flushPerfWindow;
-    if (window.startedAtMs == 0) {
-        window.startedAtMs = nowMs;
-        return;
-    }
-
-    if ((nowMs - window.startedAtMs) < 1000) {
-        return;
-    }
-
-    if (window.callbackCount > 0) {
-        const uint32_t avgAreaPixels = window.dirtyPixels / window.callbackCount;
-        const uint32_t avgSubmittedPixels =
-            (window.submittedCount > 0) ? (window.submittedPixels / window.submittedCount) : 0;
-
-        OC_LOG_INFO(
-            "[Perf][Display][LVGL] callbacks={} submitted={} skipped={} dirtyPx={} "
-            "submittedPx={} maxAreaPx={} avgAreaPx={} avgSubmittedPx={} largeAreas={} fullAreas={}",
-            window.callbackCount,
-            window.submittedCount,
-            window.skippedCount,
-            window.dirtyPixels,
-            window.submittedPixels,
-            window.maxAreaPixels,
-            avgAreaPixels,
-            avgSubmittedPixels,
-            window.largeAreaCount,
-            window.fullAreaCount
-        );
-    }
-
-    window = {};
-    window.startedAtMs = nowMs;
-}
-
-void displayInvalidateEvent(lv_event_t* e) {
-    lv_display_t* disp = static_cast<lv_display_t*>(lv_event_get_target(e));
-    lv_area_t* area = lv_event_get_invalidated_area(e);
-    if (!disp || !area) return;
-
-    const uint32_t nowMs = lv_tick_get();
-    auto& window = g_flushPerfWindow;
-    if (window.startedAtMs == 0) {
-        window.startedAtMs = nowMs;
-    }
-
-    const int32_t hor = lv_display_get_horizontal_resolution(disp);
-    const int32_t ver = lv_display_get_vertical_resolution(disp);
-    if (hor <= 0 || ver <= 0) return;
-
-    const uint32_t screenPixels = static_cast<uint32_t>(hor) * static_cast<uint32_t>(ver);
-    const uint32_t areaPixels = rectPixelCount(area);
-    if (areaPixels >= (screenPixels / 2U)) {
-        ++window.largeAreaCount;
-    }
-    if (areaPixels >= screenPixels) {
-        ++window.fullAreaCount;
-    }
 }
 
 }  // namespace
@@ -120,7 +47,11 @@ Bridge::Bridge(Bridge&& other) noexcept
     , config_(other.config_)
     , display_(other.display_)
     , initialized_(other.initialized_)
+#if OC_ENABLE_STATS
+    , refresh_diagnostics_(other.refresh_diagnostics_)
+#endif
 {
+    if (display_) lv_display_set_user_data(display_, this);
     other.display_ = nullptr;
     other.initialized_ = false;
 }
@@ -137,6 +68,10 @@ Bridge& Bridge::operator=(Bridge&& other) noexcept {
         config_ = other.config_;
         display_ = other.display_;
         initialized_ = other.initialized_;
+#if OC_ENABLE_STATS
+        refresh_diagnostics_ = other.refresh_diagnostics_;
+#endif
+        if (display_) lv_display_set_user_data(display_, this);
         other.display_ = nullptr;
         other.initialized_ = false;
     }
@@ -177,15 +112,22 @@ oc::type::Result<void> Bridge::init() {
 
     // Wire flush callback to our display driver
     lv_display_set_flush_cb(display_, flushCallback);
-    lv_display_set_user_data(display_, driver_);
-#if defined(PERF_LOG)
-    lv_display_add_event_cb(display_, displayInvalidateEvent, LV_EVENT_INVALIDATE_AREA, nullptr);
+    lv_display_set_user_data(display_, this);
+#if OC_ENABLE_STATS
+    lv_display_add_event_cb(
+        display_,
+        displayInvalidateEvent,
+        LV_EVENT_INVALIDATE_AREA,
+        display_
+    );
 #endif
 
     // Configure refresh rate if specified
     if (config_.refreshHz > 0) {
-        lv_timer_set_period(lv_display_get_refr_timer(display_),
-                            1000 / config_.refreshHz);
+        lv_timer_set_period(
+            lv_display_get_refr_timer(display_),
+            std::max<uint32_t>(1U, 1000U / config_.refreshHz)
+        );
     }
 
     // Set screen background color
@@ -197,65 +139,109 @@ oc::type::Result<void> Bridge::init() {
 
 void Bridge::refresh() {
     if (initialized_) {
+#if OC_ENABLE_STATS
+        refresh_diagnostics_.invalidatedPixels =
+            refresh_diagnostics_.pendingInvalidatedPixels;
+        refresh_diagnostics_.pendingInvalidatedPixels = 0;
+        refresh_diagnostics_.submittedPixels = 0;
+        refresh_diagnostics_.active = true;
+#endif
+        OC_PERF_SCOPE(perfRefresh, "display.lvgl.refresh");
         lv_timer_handler();
+#if OC_ENABLE_STATS
+        refresh_diagnostics_.active = false;
+        OC_PERF_UNITS(
+            perfRefresh,
+            refresh_diagnostics_.invalidatedPixels,
+            refresh_diagnostics_.submittedPixels
+        );
+#endif
     }
 }
 
 void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-    auto* driver = static_cast<interface::IDisplay*>(lv_display_get_user_data(disp));
-#if defined(PERF_LOG)
-    const uint32_t nowMs = lv_tick_get();
+    auto* bridge = static_cast<Bridge*>(lv_display_get_user_data(disp));
+    auto* driver = bridge ? bridge->driver_ : nullptr;
+    OC_PERF_SCOPE(perfFlush, "display.lvgl.flush-callback");
+#if OC_ENABLE_STATS
     const uint32_t areaPixels = rectPixelCount(area);
-    auto& perf = g_flushPerfWindow;
-    if (perf.startedAtMs == 0) {
-        perf.startedAtMs = nowMs;
-    }
-    ++perf.callbackCount;
-    perf.dirtyPixels += areaPixels;
-    if (areaPixels > perf.maxAreaPixels) {
-        perf.maxAreaPixels = areaPixels;
-    }
+    OC_PERF_UNITS(perfFlush, areaPixels, 0U);
 #endif
 
     if (driver) {
         uint8_t* buffer = px_map;
+        bool directRegionSubmitted = false;
 
         const auto mode = lv_display_get_render_mode(disp);
-        if (mode == LV_DISPLAY_RENDER_MODE_DIRECT) {
-            // DIRECT mode may flush several dirty areas. For framebuffer-based
-            // drivers that diff against the full frame, trigger transfer once
-            // on the last area and always provide the active framebuffer base.
-            if (!lv_display_flush_is_last(disp)) {
-#if defined(PERF_LOG)
-                ++perf.skippedCount;
-                maybeLogFlushPerfWindow(nowMs);
-#endif
-                lv_display_flush_ready(disp);
-                return;
-            }
-
-            if (auto* active = lv_display_get_buf_active(disp); active && active->data) {
-                buffer = active->data;
-            }
-        }
-
+        const bool isLastFlush = lv_display_flush_is_last(disp);
         interface::Rect rect{
             .x1 = area->x1,
             .y1 = area->y1,
             .x2 = area->x2,
             .y2 = area->y2
         };
-#if defined(PERF_LOG)
-        ++perf.submittedCount;
-        perf.submittedPixels += areaPixels;
+
+        if (mode == LV_DISPLAY_RENDER_MODE_DIRECT) {
+            if (auto* active = lv_display_get_buf_active(disp); active && active->data) {
+                buffer = active->data;
+            } else if (bridge && bridge->buffer_) {
+                buffer = static_cast<uint8_t*>(bridge->buffer_);
+            } else {
+                buffer = nullptr;
+            }
+
+            if (buffer) {
+#if OC_ENABLE_STATS
+                if (bridge->refresh_diagnostics_.active) {
+                    bridge->refresh_diagnostics_.submittedPixels += areaPixels;
+                }
 #endif
-        driver->flush(buffer, rect);
+                OC_PERF_UNITS(perfFlush, areaPixels, 1U);
+                driver->flushRegion(
+                    buffer,
+                    rect,
+                    static_cast<uint16_t>(lv_display_get_horizontal_resolution(disp)),
+                    isLastFlush
+                );
+                directRegionSubmitted = true;
+            }
+
+            if (!directRegionSubmitted && !isLastFlush) {
+                lv_display_flush_ready(disp);
+                return;
+            }
+        }
+
+        if (!directRegionSubmitted) {
+#if OC_ENABLE_STATS
+            if (bridge->refresh_diagnostics_.active) {
+                bridge->refresh_diagnostics_.submittedPixels += areaPixels;
+            }
+#endif
+            OC_PERF_UNITS(perfFlush, areaPixels, 1U);
+            driver->flush(buffer, rect);
+        }
     }
 
-#if defined(PERF_LOG)
-    maybeLogFlushPerfWindow(nowMs);
-#endif
     lv_display_flush_ready(disp);
 }
+
+#if OC_ENABLE_STATS
+void Bridge::displayInvalidateEvent(lv_event_t* event) {
+    auto* display = static_cast<lv_display_t*>(lv_event_get_user_data(event));
+    auto* bridge = display
+        ? static_cast<Bridge*>(lv_display_get_user_data(display))
+        : nullptr;
+    lv_area_t* area = lv_event_get_invalidated_area(event);
+    if (!bridge || !area) return;
+
+    const uint32_t pixels = rectPixelCount(area);
+    if (bridge->refresh_diagnostics_.active) {
+        bridge->refresh_diagnostics_.invalidatedPixels += pixels;
+    } else {
+        bridge->refresh_diagnostics_.pendingInvalidatedPixels += pixels;
+    }
+}
+#endif
 
 }  // namespace oc::ui::lvgl
