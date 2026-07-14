@@ -49,7 +49,8 @@ public:
      * @brief Construct LVGL bridge
      *
      * @param driver  Display driver (must outlive the bridge)
-     * @param buffer  Primary draw buffer (DMAMEM lv_color_t[width*height])
+     * @param buffer  Primary RGB565 draw buffer
+     *                (DMAMEM uint16_t[width*height])
      * @param time    Time provider for LVGL tick (e.g., millis)
      * @param config  Optional configuration
      */

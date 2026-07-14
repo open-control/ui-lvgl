@@ -6,6 +6,12 @@
 
 namespace oc::ui::lvgl {
 
+namespace {
+
+constexpr lv_color_format_t DISPLAY_COLOR_FORMAT = LV_COLOR_FORMAT_RGB565;
+
+}  // namespace
+
 #if OC_ENABLE_STATS
 namespace {
 
@@ -27,7 +33,8 @@ Bridge::Bridge(interface::IDisplay& driver, void* buffer,
                const BridgeConfig& config)
     : driver_(&driver)
     , buffer_(buffer)
-    , bufferSize_(driver.width() * driver.height() * sizeof(lv_color_t))
+    , bufferSize_(driver.width() * driver.height()
+                  * lv_color_format_get_size(DISPLAY_COLOR_FORMAT))
     , timeProvider_(time)
     , config_(config)
 {}
@@ -98,6 +105,10 @@ oc::type::Result<void> Bridge::init() {
     display_ = lv_display_create(driver_->width(), driver_->height());
     if (!display_) return R::err({E::HARDWARE_INIT_FAILED, "LVGL display create"});
 
+    // The buffer size contract depends on the display color format. Configure
+    // RGB565 first so LVGL validates and interprets the raw storage as 2 Bpp.
+    lv_display_set_color_format(display_, DISPLAY_COLOR_FORMAT);
+
     // Set draw buffers
     lv_display_set_buffers(
         display_,
@@ -106,9 +117,6 @@ oc::type::Result<void> Bridge::init() {
         bufferSize_,
         config_.renderMode
     );
-
-    // Set color format (RGB565 for ILI9341 and similar displays)
-    lv_display_set_color_format(display_, LV_COLOR_FORMAT_RGB565);
 
     // Wire flush callback to our display driver
     lv_display_set_flush_cb(display_, flushCallback);
