@@ -19,6 +19,15 @@
       "-D LV_CONF_INCLUDE_SIMPLE",
       "-D LV_LVGL_H_INCLUDE_SIMPLE"
     ],
-    "srcFilter": ["+<**/*.cpp>", "-<main.cpp>"]
+    "srcFilter": [
+      "+<oc/ui/lvgl/Bridge.cpp>",
+      "+<oc/ui/lvgl/FontLoader.cpp>",
+      "+<oc/ui/lvgl/FontUtils.cpp>",
+      "+<oc/ui/lvgl/PausableTimer.cpp>",
+      "+<oc/ui/lvgl/RetainedSurfaceParkingLot.cpp>",
+      "+<oc/ui/lvgl/Screen.cpp>",
+      "+<oc/ui/lvgl/SdlBridge.cpp>",
+      "+<oc/ui/lvgl/StaticSurfaceInvalidation.cpp>"
+    ]
   }
 }
