@@ -65,7 +65,7 @@ public:
             return;
         }
 
-        for (std::size_t i = 1; i < region_count_; ++i) {
+        for (std::size_t i = 1; i < regions_.size(); ++i) {
             join(regions_[0], regions_[i]);
         }
         join(regions_[0], area);
