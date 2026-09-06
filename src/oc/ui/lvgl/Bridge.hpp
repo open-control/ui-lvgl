@@ -87,6 +87,7 @@ public:
     lv_display_t* getDisplay() const { return display_; }
 
 private:
+    static void renderCallback(lv_timer_t* timer);
     static void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
 #if OC_ENABLE_STATS
     static void displayInvalidateEvent(lv_event_t* event);

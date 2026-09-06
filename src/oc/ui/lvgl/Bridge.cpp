@@ -121,6 +121,7 @@ oc::type::Result<void> Bridge::init() {
     // Wire flush callback to our display driver
     lv_display_set_flush_cb(display_, flushCallback);
     lv_display_set_user_data(display_, this);
+    lv_timer_set_cb(lv_display_get_refr_timer(display_), renderCallback);
 #if OC_ENABLE_STATS
     lv_display_add_event_cb(
         display_,
@@ -165,6 +166,21 @@ void Bridge::refresh() {
         );
 #endif
     }
+}
+
+void Bridge::renderCallback(lv_timer_t* timer) {
+    auto* display = static_cast<lv_display_t*>(lv_timer_get_user_data(timer));
+    auto* bridge = static_cast<Bridge*>(lv_display_get_user_data(display));
+    if (!bridge->driver_->canAcceptFrame()) {
+        // LVGL invalidations can resume this timer, so gate at dispatch rather
+        // than pausing it around lv_timer_handler. Other timers keep running.
+        // Keep damage pending and retry on the next service pass, not a newly
+        // delayed frame deadline. Only the foreground starts display transfers.
+        lv_timer_ready(timer);
+        OC_PERF_RECORD("display.lvgl.frame-deferred", 0U, 1U, 0U);
+        return;
+    }
+    lv_display_refr_timer(timer);
 }
 
 void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
