@@ -80,6 +80,23 @@ void checkFullLayoutRedraw(oc::ui::lvgl::Bridge& bridge, Display& driver) {
     assert(lv_obj_get_x(sibling) == 100);
     assert(pixels == initial);
     updateLayoutWithFullRedraw(nullptr);
+    // Opacity changes must reveal/recover the underlying pixels, not just paint
+    // the new foreground. This is the fixed overlay-curtain use case.
+    for (const lv_opa_t opacity : {LV_OPA_TRANSP, LV_OPA_90, LV_OPA_COVER, LV_OPA_TRANSP}) {
+        lv_obj_set_style_bg_opa(surface, opacity, 0);
+        present();
+        const auto expectedPixels = pixels;
+        lv_obj_set_style_bg_opa(surface, opacity == LV_OPA_COVER ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
+        present();
+        assert(pixels != expectedPixels);
+        {
+            oc::ui::lvgl::StaticSurfaceInvalidationBatch<1> batch(surface);
+            batch.include(surface);
+            lv_obj_set_style_bg_opa(surface, opacity, 0);
+        }
+        present();
+        assert(pixels == expectedPixels);
+    }
     lv_obj_delete(surface);
     lv_obj_delete(sibling);
 }
