@@ -30,6 +30,51 @@ struct Display : oc::interface::IDisplay {
     }
 };
 
+void checkAdjacentDamage(oc::ui::lvgl::Bridge& bridge, Display& driver) {
+    auto* display = bridge.getDisplay();
+    auto* screen = lv_display_get_screen_active(display);
+    const auto present = [&] {
+        driver.ready = true;
+        nowMs += 10;
+        bridge.refresh();
+    };
+    present();
+    struct Damage {
+        unsigned count = 0;
+        unsigned pixels = 0;
+    } damage;
+    const auto capture = +[](lv_event_t* event) {
+        auto& damage = *static_cast<Damage*>(lv_event_get_user_data(event));
+        const auto& area = *static_cast<lv_area_t*>(lv_event_get_param(event));
+        ++damage.count;
+        damage.pixels += lv_area_get_size(&area);
+    };
+    lv_display_add_event_cb(display, capture, LV_EVENT_INVALIDATE_AREA, &damage);
+    for (bool horizontal : {false, true}) {
+        damage = {};
+        {
+            oc::ui::lvgl::StaticSurfaceInvalidationBatch<8> batch(screen);
+            for (int i = 0; i < 8; ++i) {
+                batch.include(horizontal ? lv_area_t{20 + i * 10, 20, 29 + i * 10, 22}
+                                         : lv_area_t{20, 20 + i * 10, 22, 29 + i * 10});
+            }
+        }
+        assert(damage.count == 1U && damage.pixels == 240U);
+        present();
+    }
+    damage = {};
+    {
+        oc::ui::lvgl::StaticSurfaceInvalidationBatch<8> batch(screen);
+        batch.include(lv_area_t{20, 20, 22, 29});
+        batch.include(lv_area_t{20, 31, 22, 40}); // Gap must stay untouched.
+        batch.include(lv_area_t{21, 41, 23, 50}); // Different playhead position.
+        batch.include(lv_area_t{21, 51, 24, 60}); // Different damage width.
+    }
+    assert(damage.count == 4U && damage.pixels == 130U);
+    present();
+    lv_display_remove_event_cb_with_user_data(display, capture, &damage);
+}
+
 void checkFullLayoutRedraw(oc::ui::lvgl::Bridge& bridge, Display& driver) {
     using oc::ui::lvgl::updateLayoutWithFullRedraw;
     auto* display = bridge.getDisplay();
@@ -156,5 +201,6 @@ int main() {
     lv_timer_resume(refreshTimer);
     refresh();
     assert(driver.frames == 3);
+    checkAdjacentDamage(bridge, driver);
     checkFullLayoutRedraw(bridge, driver);
 }
