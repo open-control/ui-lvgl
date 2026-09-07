@@ -12,10 +12,19 @@ namespace oc::ui::lvgl {
  * Invalidates an exact area of a static, effect-free object.
  *
  * The object must not draw outside its coordinates through shadows, blur, or
- * overflow effects. Use normal LVGL invalidation when that contract is false.
+ * overflow effects. No overlapping object may sample this surface through
+ * backdrop blur. Use normal LVGL invalidation when that contract is false.
  */
 void invalidateStaticSurfaceArea(lv_obj_t* clipObject,
                                  const lv_area_t& requested);
+
+/**
+ * Resolves layout with one full-screen redraw instead of per-object damage.
+ * Only for transitions already requiring a broad redraw, never animation.
+ * Layout callbacks may move siblings: the complete display is repainted.
+ * An existing invalidation pause remains owned by the caller.
+ */
+void updateLayoutWithFullRedraw(lv_obj_t* object);
 
 /**
  * Batches mutations for a static, effect-free LVGL surface.

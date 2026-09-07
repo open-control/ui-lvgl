@@ -9,6 +9,19 @@ static_assert(LVGL_VERSION_MAJOR == 9,
 
 namespace oc::ui::lvgl {
 
+void updateLayoutWithFullRedraw(lv_obj_t* object) {
+    if (!object) return;
+    auto* display = lv_obj_get_display(object);
+    const bool ownsPause = lv_display_is_invalidation_enabled(display);
+    if (ownsPause) lv_display_enable_invalidation(display, false);
+    lv_obj_update_layout(object);
+    if (ownsPause) {
+        lv_display_enable_invalidation(display, true);
+        // Normal LVGL invalidation retains effect/layer handling once per layout.
+        lv_obj_invalidate(lv_display_get_screen_active(display));
+    }
+}
+
 void invalidateStaticSurfaceArea(lv_obj_t* clipObject,
                                  const lv_area_t& requested) {
     if (!clipObject) return;

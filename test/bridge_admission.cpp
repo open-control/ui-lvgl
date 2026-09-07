@@ -1,6 +1,7 @@
 #include <array>
 #include <cassert>
 #include <oc/ui/lvgl/Bridge.hpp>
+#include <oc/ui/lvgl/StaticSurfaceInvalidation.hpp>
 
 namespace {
 uint32_t nowMs = 0;
@@ -28,6 +29,60 @@ struct Display : oc::interface::IDisplay {
         }
     }
 };
+
+void checkFullLayoutRedraw(oc::ui::lvgl::Bridge& bridge, Display& driver) {
+    using oc::ui::lvgl::updateLayoutWithFullRedraw;
+    auto* display = bridge.getDisplay();
+    auto* surface = lv_obj_create(lv_display_get_screen_active(display));
+    lv_obj_remove_style_all(surface);
+    lv_obj_set_size(surface, 100, 100);
+    auto* child = lv_obj_create(surface);
+    lv_obj_set_size(child, LV_PCT(100), 30);
+    // A layout callback also moves another layer, outside the requested object.
+    auto* sibling = lv_obj_create(lv_display_get_layer_top(display));
+    lv_obj_set_size(sibling, 25, 25);
+    lv_obj_add_event_cb(child, [](lv_event_t* event) {
+        lv_obj_set_pos(static_cast<lv_obj_t*>(lv_event_get_user_data(event)),
+                       lv_obj_get_width(lv_event_get_target_obj(event)), 150);
+    }, LV_EVENT_SIZE_CHANGED, sibling);
+    const auto present = [&] {
+        driver.ready = true;
+        nowMs += 10;
+        bridge.refresh();
+    };
+    lv_obj_update_layout(surface);
+    present();
+    const auto initial = pixels;
+    lv_obj_set_width(surface, 180);
+    lv_obj_update_layout(surface);
+    present();
+    const auto expected = pixels;
+    assert(initial != expected);
+    lv_obj_set_width(surface, 100);
+    lv_obj_update_layout(surface);
+    present();
+    assert(initial == pixels);
+
+    lv_obj_set_width(surface, 180);
+    updateLayoutWithFullRedraw(surface);
+    assert(lv_display_is_invalidation_enabled(display));
+    present();
+    assert(lv_obj_get_x(sibling) == 180);
+    assert(pixels == expected);
+
+    lv_display_enable_invalidation(display, false);
+    lv_obj_set_width(surface, 100);
+    updateLayoutWithFullRedraw(surface);
+    assert(!lv_display_is_invalidation_enabled(display));
+    lv_display_enable_invalidation(display, true);
+    lv_obj_invalidate(lv_display_get_screen_active(display));
+    present();
+    assert(lv_obj_get_x(sibling) == 100);
+    assert(pixels == initial);
+    updateLayoutWithFullRedraw(nullptr);
+    lv_obj_delete(surface);
+    lv_obj_delete(sibling);
+}
 }
 
 int main() {
@@ -84,4 +139,5 @@ int main() {
     lv_timer_resume(refreshTimer);
     refresh();
     assert(driver.frames == 3);
+    checkFullLayoutRedraw(bridge, driver);
 }
