@@ -55,7 +55,7 @@ void RetainedSurfaceParkingLot::mirrorViewport(lv_obj_t* host, lv_obj_t* sourceP
 }
 
 void RetainedSurfaceParkingLot::select(lv_obj_t* active, lv_obj_t* parent, lv_obj_t* host) {
-    if (!active || !parent || !host) return;
+    if (!parent || !host) return;
     for (uint32_t i = lv_obj_get_child_count(parent); i > 0; --i) {
         auto* child = lv_obj_get_child(parent, static_cast<int32_t>(i - 1));
         if (child != active) park(child, host);
