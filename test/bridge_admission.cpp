@@ -2,6 +2,9 @@
 #include <cassert>
 #include <oc/ui/lvgl/Bridge.hpp>
 #include <oc/ui/lvgl/StaticSurfaceInvalidation.hpp>
+#if OC_ENABLE_LVGL_BENCHMARK
+#include <oc/time/Time.hpp>
+#endif
 
 namespace {
 uint32_t nowMs = 0;
@@ -29,6 +32,90 @@ struct Display : oc::interface::IDisplay {
         }
     }
 };
+
+void checkStaticSurfaceBatch(oc::ui::lvgl::Bridge& bridge, Display& driver) {
+    using oc::ui::lvgl::StaticSurfaceInvalidationBatch;
+    auto* display = bridge.getDisplay();
+    auto* surface = lv_obj_create(lv_display_get_screen_active(display));
+    lv_obj_remove_style_all(surface);
+    lv_obj_set_pos(surface, 90, 10);
+    lv_obj_set_size(surface, 180, 120);
+    lv_obj_set_style_bg_opa(surface, LV_OPA_COVER, 0);
+    auto* label = lv_label_create(surface);
+    lv_obj_set_size(label, 60, 20);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+    auto* card = lv_obj_create(surface);
+    lv_obj_remove_style_all(card);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+
+    const auto present = [&] {
+        driver.ready = true;
+        nowMs += 10;
+        bridge.refresh();
+    };
+    const auto populate = [&](bool edited) {
+        lv_obj_set_style_bg_color(surface, lv_color_hex(edited ? 0x181818 : 0x080808), 0);
+        lv_label_set_text_static(label, edited ? "Changed label" : "Initial");
+        lv_obj_set_style_text_color(label, lv_color_hex(edited ? 0x00ffff : 0xffffff), 0);
+        lv_obj_set_pos(label, edited ? 135 : 8, 5); // Exercise parent clipping.
+        lv_obj_set_pos(card, edited ? 45 : 8, 35);
+        lv_obj_set_size(card, edited ? 90 : 30, edited ? 50 : 20);
+        lv_obj_set_style_bg_color(card, lv_color_hex(edited ? 0xff0000 : 0x0000ff), 0);
+        lv_obj_update_layout(surface);
+    };
+    populate(false);
+    present();
+    const auto initialPixels = pixels;
+
+    unsigned invalidations = 0;
+    const auto countInvalidation = +[](lv_event_t* event) {
+        ++*static_cast<unsigned*>(lv_event_get_user_data(event));
+    };
+    lv_display_add_event_cb(display, countInvalidation, LV_EVENT_INVALIDATE_AREA, &invalidations);
+    populate(true);
+    assert(invalidations > 1U);
+    present();
+    const auto expectedPixels = pixels;
+    assert(expectedPixels != initialPixels);
+    populate(false);
+    present();
+    assert(pixels == initialPixels);
+
+    invalidations = 0;
+    {
+        StaticSurfaceInvalidationBatch<1> batch(surface);
+        batch.include(surface); // All child geometry remains within this fixed surface.
+        assert(!lv_display_is_invalidation_enabled(display));
+        {
+            StaticSurfaceInvalidationBatch<1> nested(card);
+            nested.include(card);
+            populate(true);
+        }
+        assert(!lv_display_is_invalidation_enabled(display));
+        assert(invalidations == 0U);
+        batch.flush();
+        assert(lv_display_is_invalidation_enabled(display));
+        assert(invalidations == 1U);
+    }
+    assert(invalidations == 1U); // Explicit flush + destruction is idempotent.
+    present();
+    assert(pixels == expectedPixels); // Same complete RGB565 image as ordinary LVGL mutations.
+
+    invalidations = 0;
+    lv_display_enable_invalidation(display, false);
+    {
+        StaticSurfaceInvalidationBatch<1> batch(surface);
+        batch.include(surface);
+        populate(false);
+    }
+    assert(!lv_display_is_invalidation_enabled(display) && invalidations == 0U);
+    lv_display_enable_invalidation(display, true);
+    lv_obj_invalidate(surface);
+    present();
+    assert(pixels == initialPixels);
+    lv_display_remove_event_cb_with_user_data(display, countInvalidation, &invalidations);
+    lv_obj_delete(surface);
+}
 
 void checkAdjacentDamage(oc::ui::lvgl::Bridge& bridge, Display& driver) {
     auto* display = bridge.getDisplay();
@@ -148,6 +235,12 @@ void checkFullLayoutRedraw(oc::ui::lvgl::Bridge& bridge, Display& driver) {
 }
 
 int main() {
+#if OC_ENABLE_LVGL_BENCHMARK
+    namespace bench = oc::ui::lvgl::benchmark;
+    oc::time::setMicrosProvider([] { return nowMs * 1000U; });
+    assert(bench::beginRun(55U));
+    bench::setMarker(8U);
+#endif
     Display driver;
     oc::ui::lvgl::Bridge bridge(driver, pixels.data(), [] { return nowMs; }, {
         .renderMode = LV_DISPLAY_RENDER_MODE_DIRECT,
@@ -167,6 +260,9 @@ int main() {
         ++timerTicks;
         // Model an animation invalidating during lv_timer_handler itself.
         lv_obj_invalidate(static_cast<lv_obj_t*>(lv_timer_get_user_data(timer)));
+#if OC_ENABLE_LVGL_BENCHMARK
+        lv_obj_set_style_border_width(static_cast<lv_obj_t*>(lv_timer_get_user_data(timer)), timerTicks & 1U, 0);
+#endif
     }, 1, item);
 
     const auto refresh = [&] { nowMs += 10; bridge.refresh(); };
@@ -201,6 +297,19 @@ int main() {
     lv_timer_resume(refreshTimer);
     refresh();
     assert(driver.frames == 3);
+#if OC_ENABLE_LVGL_BENCHMARK
+    bench::endRun();
+    const auto& profile = bench::snapshot();
+    assert(profile.frames == 8U && profile.errors == 0U);
+    assert(profile.last.runId == 55U && profile.last.marker == 8U);
+    assert(profile.totals[static_cast<size_t>(bench::Phase::TimerCallback)].calls >= timerTicks);
+    assert(profile.totals[static_cast<size_t>(bench::Phase::Layout)].calls > 0U);
+    assert(profile.totals[static_cast<size_t>(bench::Phase::StyleRefresh)].calls >= timerTicks);
+    assert(profile.totals[static_cast<size_t>(bench::Phase::DrawArea)].calls > 0U);
+    assert(profile.totals[static_cast<size_t>(bench::Phase::Flush)].calls == driver.regions);
+    assert(profile.last.submittedPixels > 0U);
+#endif
+    checkStaticSurfaceBatch(bridge, driver);
     checkAdjacentDamage(bridge, driver);
     checkFullLayoutRedraw(bridge, driver);
 }

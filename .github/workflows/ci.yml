@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rendering_contracts:
+    name: LVGL admission and profiler (${{ matrix.benchmark }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        benchmark: ['OFF', 'ON']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: ui-lvgl
+
+      - name: Resolve framework from release dependencies
+        id: framework
+        run: |
+          python - <<'PY'
+          import configparser, os, re
+          from pathlib import Path
+          config = configparser.ConfigParser(interpolation=None)
+          config.read('ui-lvgl/platformio.ini')
+          match = re.search(r'framework\.git#([0-9a-f]{40})', config['env:release']['lib_deps'])
+          if match is None:
+              raise SystemExit('Missing immutable release framework pin')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              output.write(f'sha={match[1]}\n')
+          PY
+
+      - uses: actions/checkout@v6
+        with:
+          repository: open-control/framework
+          ref: ${{ steps.framework.outputs.sha }}
+          path: framework
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install test tools and firmware LVGL version
+        run: |
+          python -m pip install 'cmake>=3.29,<5' ninja 'platformio==6.1.18'
+          lvgl_version="$(python -c 'import json; print(json.load(open("ui-lvgl/library.json"))["dependencies"]["lvgl/lvgl"])')"
+          pio pkg install --global --library "lvgl/lvgl@$lvgl_version"
+
+      - name: Build and test real LVGL integration
+        run: |
+          cmake -S ui-lvgl/test -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DLVGL_DIR="$HOME/.platformio/lib/lvgl" \
+            -DOC_TEST_LVGL_BENCHMARK=${{ matrix.benchmark }}
+          cmake --build build --parallel 4
+          ctest --test-dir build --output-on-failure

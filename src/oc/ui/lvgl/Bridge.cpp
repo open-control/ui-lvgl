@@ -12,7 +12,7 @@ constexpr lv_color_format_t DISPLAY_COLOR_FORMAT = LV_COLOR_FORMAT_RGB565;
 
 }  // namespace
 
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
 namespace {
 
 uint32_t rectPixelCount(const lv_area_t* area) {
@@ -54,7 +54,7 @@ Bridge::Bridge(Bridge&& other) noexcept
     , config_(other.config_)
     , display_(other.display_)
     , initialized_(other.initialized_)
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
     , refresh_diagnostics_(other.refresh_diagnostics_)
 #endif
 {
@@ -75,7 +75,7 @@ Bridge& Bridge::operator=(Bridge&& other) noexcept {
         config_ = other.config_;
         display_ = other.display_;
         initialized_ = other.initialized_;
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
         refresh_diagnostics_ = other.refresh_diagnostics_;
 #endif
         if (display_) lv_display_set_user_data(display_, this);
@@ -122,7 +122,7 @@ oc::type::Result<void> Bridge::init() {
     lv_display_set_flush_cb(display_, flushCallback);
     lv_display_set_user_data(display_, this);
     lv_timer_set_cb(lv_display_get_refr_timer(display_), renderCallback);
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
     lv_display_add_event_cb(
         display_,
         displayInvalidateEvent,
@@ -148,7 +148,7 @@ oc::type::Result<void> Bridge::init() {
 
 void Bridge::refresh() {
     if (initialized_) {
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
         refresh_diagnostics_.invalidatedPixels =
             refresh_diagnostics_.pendingInvalidatedPixels;
         refresh_diagnostics_.pendingInvalidatedPixels = 0;
@@ -156,8 +156,17 @@ void Bridge::refresh() {
         refresh_diagnostics_.active = true;
 #endif
         OC_PERF_SCOPE(perfRefresh, "display.lvgl.refresh");
+#if OC_ENABLE_LVGL_BENCHMARK
+        const bool benchmarkFrame = benchmark::beginFrame();
+#endif
         lv_timer_handler();
-#if OC_ENABLE_STATS
+#if OC_ENABLE_LVGL_BENCHMARK
+        if (benchmarkFrame) benchmark::endFrame(
+            refresh_diagnostics_.invalidatedPixels,
+            refresh_diagnostics_.submittedPixels
+        );
+#endif
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
         refresh_diagnostics_.active = false;
         OC_PERF_UNITS(
             perfRefresh,
@@ -187,7 +196,7 @@ void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* p
     auto* bridge = static_cast<Bridge*>(lv_display_get_user_data(disp));
     auto* driver = bridge ? bridge->driver_ : nullptr;
     OC_PERF_SCOPE(perfFlush, "display.lvgl.flush-callback");
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
     const uint32_t areaPixels = rectPixelCount(area);
     OC_PERF_UNITS(perfFlush, areaPixels, 0U);
 #endif
@@ -215,7 +224,7 @@ void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* p
             }
 
             if (buffer) {
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
                 if (bridge->refresh_diagnostics_.active) {
                     bridge->refresh_diagnostics_.submittedPixels += areaPixels;
                 }
@@ -237,7 +246,7 @@ void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* p
         }
 
         if (!directRegionSubmitted) {
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
             if (bridge->refresh_diagnostics_.active) {
                 bridge->refresh_diagnostics_.submittedPixels += areaPixels;
             }
@@ -250,7 +259,7 @@ void Bridge::flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* p
     lv_display_flush_ready(disp);
 }
 
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
 void Bridge::displayInvalidateEvent(lv_event_t* event) {
     auto* display = static_cast<lv_display_t*>(lv_event_get_user_data(event));
     auto* bridge = display

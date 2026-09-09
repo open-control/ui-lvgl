@@ -4,6 +4,7 @@ set(OC_UI_LVGL_SOURCE_PATHS
     src/oc/ui/lvgl/Bridge.cpp
     src/oc/ui/lvgl/FontLoader.cpp
     src/oc/ui/lvgl/FontUtils.cpp
+    src/oc/ui/lvgl/LvglFrameProfiler.cpp
     src/oc/ui/lvgl/PausableTimer.cpp
     src/oc/ui/lvgl/RetainedSurfaceParkingLot.cpp
     src/oc/ui/lvgl/Screen.cpp
