@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 #include <lvgl.h>
 
@@ -12,10 +13,19 @@ namespace oc::ui::lvgl {
  * Invalidates an exact area of a static, effect-free object.
  *
  * The object must not draw outside its coordinates through shadows, blur, or
- * overflow effects. Use normal LVGL invalidation when that contract is false.
+ * overflow effects. No overlapping object may sample this surface through
+ * backdrop blur. Use normal LVGL invalidation when that contract is false.
  */
 void invalidateStaticSurfaceArea(lv_obj_t* clipObject,
                                  const lv_area_t& requested);
+
+/**
+ * Resolves layout with one full-screen redraw instead of per-object damage.
+ * Only for transitions already requiring a broad redraw, never animation.
+ * Layout callbacks may move siblings: the complete display is repainted.
+ * An existing invalidation pause remains owned by the caller.
+ */
+void updateLayoutWithFullRedraw(lv_obj_t* object);
 
 /**
  * Batches mutations for a static, effect-free LVGL surface.
@@ -59,6 +69,21 @@ public:
         if (collapsed_) {
             join(regions_[0], area);
             return;
+        }
+        for (std::size_t i = 0; i < region_count_; ++i) {
+            const auto& stored = regions_[i];
+            // Coalesce aligned strips without painting any additional pixels.
+            // LVGL's overlap-only merge leaves adjacent lane damage separate.
+            const bool vertical = stored.x1 == area.x1 && stored.x2 == area.x2 &&
+                int64_t(stored.y1) <= int64_t(area.y2) + 1 &&
+                int64_t(area.y1) <= int64_t(stored.y2) + 1;
+            const bool horizontal = stored.y1 == area.y1 && stored.y2 == area.y2 &&
+                int64_t(stored.x1) <= int64_t(area.x2) + 1 &&
+                int64_t(area.x1) <= int64_t(stored.x2) + 1;
+            if (vertical || horizontal) {
+                join(regions_[i], area);
+                return;
+            }
         }
         if (region_count_ < regions_.size()) {
             regions_[region_count_++] = area;

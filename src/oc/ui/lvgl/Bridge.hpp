@@ -7,6 +7,7 @@
 #include <oc/interface/IDisplay.hpp>
 #include <oc/type/Ids.hpp>
 #include <oc/type/Callbacks.hpp>
+#include "LvglFrameProfiler.hpp"
 
 namespace oc::ui::lvgl {
 
@@ -87,8 +88,9 @@ public:
     lv_display_t* getDisplay() const { return display_; }
 
 private:
+    static void renderCallback(lv_timer_t* timer);
     static void flushCallback(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map);
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
     static void displayInvalidateEvent(lv_event_t* event);
 
     struct RefreshDiagnostics {
@@ -106,7 +108,7 @@ private:
     BridgeConfig config_;
     lv_display_t* display_ = nullptr;
     bool initialized_ = false;
-#if OC_ENABLE_STATS
+#if OC_ENABLE_STATS || OC_ENABLE_LVGL_BENCHMARK
     RefreshDiagnostics refresh_diagnostics_{};
 #endif
 };

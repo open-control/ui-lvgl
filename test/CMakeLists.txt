@@ -1,0 +1,43 @@
+cmake_minimum_required(VERSION 3.29)
+project(oc_ui_lvgl_bridge_test LANGUAGES C CXX)
+
+set(OC_FRAMEWORK_DIR "${CMAKE_CURRENT_LIST_DIR}/../../framework" CACHE PATH "Framework checkout")
+set(LVGL_DIR "" CACHE PATH "LVGL source checkout (same version as firmware)")
+if(NOT EXISTS "${LVGL_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR "Set LVGL_DIR to the firmware's LVGL source directory")
+endif()
+set(LV_BUILD_CONF_PATH "${CMAKE_CURRENT_LIST_DIR}/lv_conf.h" CACHE PATH "" FORCE)
+set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_USE_THORVG_INTERNAL OFF CACHE BOOL "" FORCE)
+option(OC_TEST_LVGL_BENCHMARK "Exercise selected LVGL benchmark hooks in the real bridge" OFF)
+add_subdirectory("${LVGL_DIR}" lvgl)
+add_executable(bridge_admission bridge_admission.cpp
+    ../src/oc/ui/lvgl/Bridge.cpp
+    ../src/oc/ui/lvgl/StaticSurfaceInvalidation.cpp)
+target_compile_features(bridge_admission PRIVATE cxx_std_17)
+target_include_directories(bridge_admission PRIVATE ../src "${OC_FRAMEWORK_DIR}/src")
+target_link_libraries(bridge_admission PRIVATE lvgl::lvgl)
+if(OC_TEST_LVGL_BENCHMARK)
+    target_compile_definitions(lvgl PUBLIC OC_ENABLE_LVGL_BENCHMARK=1)
+    target_include_directories(lvgl PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../src")
+    target_sources(bridge_admission PRIVATE
+        ../src/oc/ui/lvgl/LvglFrameProfiler.cpp
+        "${OC_FRAMEWORK_DIR}/src/oc/time/Time.cpp")
+endif()
+add_executable(lvgl_frame_profiler lvgl_frame_profiler.cpp
+    ../src/oc/ui/lvgl/LvglFrameProfiler.cpp
+    "${OC_FRAMEWORK_DIR}/src/oc/time/Time.cpp")
+target_compile_features(lvgl_frame_profiler PRIVATE cxx_std_17)
+target_compile_definitions(lvgl_frame_profiler PRIVATE OC_ENABLE_LVGL_BENCHMARK=1)
+target_include_directories(lvgl_frame_profiler PRIVATE ../src "${OC_FRAMEWORK_DIR}/src")
+if(MSVC)
+    target_compile_options(bridge_admission PRIVATE /UNDEBUG)
+    target_compile_options(lvgl_frame_profiler PRIVATE /UNDEBUG)
+else()
+    target_compile_options(bridge_admission PRIVATE -UNDEBUG)
+    target_compile_options(lvgl_frame_profiler PRIVATE -UNDEBUG)
+endif()
+enable_testing()
+add_test(NAME bridge_admission COMMAND bridge_admission)
+add_test(NAME lvgl_frame_profiler COMMAND lvgl_frame_profiler)

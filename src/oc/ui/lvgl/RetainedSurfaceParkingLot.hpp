@@ -29,6 +29,9 @@ public:
 
     static void attach(lv_obj_t* root, lv_obj_t* parent);
     static void park(lv_obj_t* root, lv_obj_t* host);
+    // Select one surface (or none) in a dedicated content parent; retain siblings
+    // off-screen. Visibility flags remain the surface owners' responsibility.
+    static void select(lv_obj_t* active, lv_obj_t* parent, lv_obj_t* host);
 
 private:
     static void mirrorViewport(lv_obj_t* host, lv_obj_t* sourceParent);
